@@ -1,5 +1,13 @@
 const express = require("express");
 const timeRouter = require("./routes/timeRoutes");
+const userRouter = require("./routes/userRoutes");
+const notFound = require("./middleware/not-found");
+const errorHandler = require("./middleware/error-handler");
+
+// Temporary in-memory data until we add a real database.
+global.user_id = null;
+global.users = [];
+global.tasks = [];
 
 const app = express();
 
@@ -16,13 +24,11 @@ app.post("/testpost", (req, res) => {
 });
 
 app.use("/api", timeRouter);
+app.use("/api/users", userRouter);
 
-// Final fallback for any route nothing above handled.
-app.all("/{*splat}", (req, res) => {
-  res.status(404).json({
-    message: `No route found for ${req.method} ${req.path}`,
-  });
-});
+// Not-found goes after all real routes, error handler goes last.
+app.use(notFound);
+app.use(errorHandler);
 
 const port = process.env.PORT || 3000;
 

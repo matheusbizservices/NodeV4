@@ -5,11 +5,11 @@ const taskRouter = require("./routes/taskRoutes");
 const authMiddleware = require("./middleware/auth");
 const notFound = require("./middleware/not-found");
 const errorHandler = require("./middleware/error-handler");
+const pool = require("./db/pg-pool");
 
-// Temporary in-memory data until we add a real database.
+// Users and tasks now live in PostgreSQL. global.user_id still remembers who
+// is logged on until we add real sessions or tokens in a later assignment.
 global.user_id = null;
-global.users = [];
-global.tasks = [];
 
 const app = express();
 
@@ -17,6 +17,15 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("Hello, World!");
+});
+
+app.get("/health", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.json({ status: "ok", db: "connected" });
+  } catch (err) {
+    res.status(500).json({ message: `db not connected, error: ${err.message}` });
+  }
 });
 
 app.post("/testpost", (req, res) => {
@@ -65,6 +74,8 @@ async function shutdown(code = 0) {
       });
     });
     console.log("HTTP server closed.");
+    // Release the database connections so the process can exit.
+    await pool.end();
   } catch (err) {
     console.error("Error during shutdown:", err);
     code = 1;

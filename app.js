@@ -2,6 +2,7 @@ const express = require("express");
 const timeRouter = require("./routes/timeRoutes");
 const userRouter = require("./routes/userRoutes");
 const taskRouter = require("./routes/taskRoutes");
+const analyticsRouter = require("./routes/analyticsRoutes");
 const authMiddleware = require("./middleware/auth");
 const notFound = require("./middleware/not-found");
 const errorHandler = require("./middleware/error-handler");
@@ -39,6 +40,7 @@ app.post("/testpost", (req, res) => {
 app.use("/api", timeRouter);
 app.use("/api/users", userRouter);
 app.use("/api/tasks", authMiddleware, taskRouter);
+app.use("/api/analytics", authMiddleware, analyticsRouter);
 
 // Not-found goes after all real routes, error handler goes last.
 app.use(notFound);

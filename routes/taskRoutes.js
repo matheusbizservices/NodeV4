@@ -1,5 +1,6 @@
 const express = require("express");
 const {
+  bulkCreate,
   index,
   show,
   create,
@@ -10,6 +11,8 @@ const {
 const router = express.Router();
 
 router.get("/", index);
+// /bulk must come before /:id, or Express would treat "bulk" as an id
+router.post("/bulk", bulkCreate);
 router.get("/:id", show);
 router.post("/", create);
 router.patch("/:id", update);

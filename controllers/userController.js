@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const util = require("util");
 const { userSchema } = require("../validation/userSchema");
-const pool = require("../db/pg-pool");
+const prisma = require("../db/prisma");
 
 // crypto.scrypt uses a callback, promisify lets us use it with await.
 const scrypt = util.promisify(crypto.scrypt);
@@ -33,41 +33,40 @@ async function register(req, res, next) {
   // Never store the plain password, only the salted hash.
   const hashedPassword = await hashPassword(value.password);
 
-  let result;
+  let user = null;
   try {
-    // Parameterized query: the values are never pasted into the SQL text.
-    result = await pool.query(
-      `INSERT INTO users (email, name, hashed_password)
-       VALUES ($1, $2, $3) RETURNING id, email, name`,
-      [value.email, value.name, hashedPassword],
-    );
-  } catch (e) {
-    if (e.code === "23505") {
+    user = await prisma.user.create({
+      data: { name: value.name, email: value.email, hashedPassword },
+      select: { name: true, email: true, id: true }, // columns to return
+    });
+  } catch (err) {
+    if (err.name === "PrismaClientKnownRequestError" && err.code === "P2002") {
       // unique constraint on email: that email is already registered
-      return res.status(400).json({ message: "That email is already registered." });
+      return res
+        .status(400)
+        .json({ message: "That email is already registered." });
     }
-    return next(e); // any other error goes to the error handler
+    return next(err); // the error handler takes care of other errors
   }
 
-  const user = result.rows[0];
   global.user_id = user.id;
-
   res.status(201).json({ name: user.name, email: user.email });
 }
 
 async function logon(req, res) {
   if (!req.body) req.body = {};
-  const { email, password } = req.body;
+  let { email, password } = req.body;
 
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-    email,
-  ]);
-  const user = result.rows[0];
+  // Joi lowercases emails on register, so do the same here to match.
+  email = typeof email === "string" ? email.toLowerCase() : email;
+  const user = email
+    ? await prisma.user.findUnique({ where: { email } })
+    : null;
 
   const goodCredentials =
     user &&
     typeof password === "string" &&
-    (await comparePassword(password, user.hashed_password));
+    (await comparePassword(password, user.hashedPassword));
 
   if (!goodCredentials) {
     return res.status(401).json({ message: "Authentication failed" });

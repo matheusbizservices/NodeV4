@@ -5,7 +5,7 @@ const taskRouter = require("./routes/taskRoutes");
 const authMiddleware = require("./middleware/auth");
 const notFound = require("./middleware/not-found");
 const errorHandler = require("./middleware/error-handler");
-const pool = require("./db/pg-pool");
+const prisma = require("./db/prisma");
 
 // Users and tasks now live in PostgreSQL. global.user_id still remembers who
 // is logged on until we add real sessions or tokens in a later assignment.
@@ -21,10 +21,12 @@ app.get("/", (req, res) => {
 
 app.get("/health", async (req, res) => {
   try {
-    await pool.query("SELECT 1");
+    await prisma.$queryRaw`SELECT 1`;
     res.json({ status: "ok", db: "connected" });
   } catch (err) {
-    res.status(500).json({ message: `db not connected, error: ${err.message}` });
+    res
+      .status(500)
+      .json({ status: "error", db: "not connected", error: err.message });
   }
 });
 
@@ -75,7 +77,8 @@ async function shutdown(code = 0) {
     });
     console.log("HTTP server closed.");
     // Release the database connections so the process can exit.
-    await pool.end();
+    await prisma.$disconnect();
+    console.log("Prisma disconnected");
   } catch (err) {
     console.error("Error during shutdown:", err);
     code = 1;

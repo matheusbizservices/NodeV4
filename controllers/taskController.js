@@ -46,7 +46,7 @@ async function create(req, res, next) {
         title: value.title,
         isCompleted: value.isCompleted,
         priority: value.priority,
-        userId: global.user_id,
+        userId: req.user.id,
       },
       select: taskFields,
     });
@@ -80,7 +80,7 @@ async function bulkCreate(req, res, next) {
       title: value.title,
       isCompleted: value.isCompleted,
       priority: value.priority,
-      userId: global.user_id,
+      userId: req.user.id,
     });
   }
 
@@ -116,7 +116,7 @@ async function index(req, res, next) {
   const skip = (page - 1) * limit;
 
   // Build the where clause. Only the logged-in user's tasks, plus optional search.
-  const whereClause = { userId: global.user_id };
+  const whereClause = { userId: req.user.id };
   if (req.query.find) {
     whereClause.title = {
       contains: req.query.find, // matches %find%
@@ -162,7 +162,7 @@ async function show(req, res, next) {
 
   try {
     const task = await prisma.task.findUnique({
-      where: { id_userId: { id, userId: global.user_id } },
+      where: { id_userId: { id, userId: req.user.id } },
       select: taskFieldsWithUser,
     });
 
@@ -197,7 +197,7 @@ async function update(req, res, next) {
   try {
     const task = await prisma.task.update({
       data: value,
-      where: { id_userId: { id, userId: global.user_id } },
+      where: { id_userId: { id, userId: req.user.id } },
       select: taskFields,
     });
     res.status(200).json(task);
@@ -218,7 +218,7 @@ async function deleteTask(req, res, next) {
 
   try {
     const task = await prisma.task.delete({
-      where: { id_userId: { id, userId: global.user_id } },
+      where: { id_userId: { id, userId: req.user.id } },
       select: taskFields,
     });
     res.status(200).json(task);
